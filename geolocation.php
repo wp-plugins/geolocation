@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: Geolocation
-Plugin URI: http://wordpress.org/plugins/geolocation/
+Plugin URI: http://geo.chrisboyd.net/
 Description: Displays post geotag information on an embedded map.
 Version: 0.1
 Author: Chris Boyd
-Author URI: http://www.chrisboyd.net
+Author URI: http://www.chrisboyd.net/
 License: GPL2
 */
 
