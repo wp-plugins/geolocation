@@ -19,6 +19,11 @@ Visitors see a short description of the address either before, after, or at a cu
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. Modify the display settings as needed on the Settings > Geolocation page.
 
+== Screenshots ==
+
+1. screenshot-1.png
+2. screenshot-2.png
+
 == Changelog ==
 
 = 0.1 =
