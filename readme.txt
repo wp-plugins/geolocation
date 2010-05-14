@@ -28,10 +28,3 @@ Visitors see a short description of the address either before, after, or at a cu
 
 = 0.1 =
 * Initial release.
-
-= 0.1.1 =
-* Added ability to turn geolocation on and off for individual posts.
-* Admin Panel no longer shows up when editing a page.
-* Removed display of latitude and longitude on mouse hover.
-* Map link color now defaults to your theme.
-* Clicking link now (properly) does nothing.
