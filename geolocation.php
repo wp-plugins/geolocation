@@ -2,14 +2,14 @@
 /*
 Plugin Name: Geolocation
 Plugin URI: http://wordpress.org/extend/plugins/geolocation/
-Description: Displays post geotag information on an embedded map.
-Version: 0.1.1
+Description: Displays location information on an embedded map.
+Version: 1.0
 Author: Chris Boyd
-Author URI: http://geo.chrisboyd.net
+Author URI: http://apptitudenola.com
 License: GPL2
 */
 
-/*  Copyright 2010 Chris Boyd (email : chris@chrisboyd.net)
+/*  Copyright 2013 Chris Boyd (email : hey@apptitudenola.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2, as 
@@ -42,12 +42,20 @@ function activate() {
 	add_option('geolocation_map_height', '150');
 	add_option('geolocation_default_zoom', '16');
 	add_option('geolocation_map_position', 'after');
+	add_option('geolocation_description_text', 'Posted from ');
 	add_option('geolocation_wp_pin', '1');
 }
 
 function geolocation_add_custom_box() {
 		if(function_exists('add_meta_box')) {
+			// Add the geolocation box to normal posts
 			add_meta_box('geolocation_sectionid', __( 'Geolocation', 'myplugin_textdomain' ), 'geolocation_inner_custom_box', 'post', 'advanced' );
+				
+			// Add the geolocation meta box to all custom post types as well
+			$post_types = get_post_types();
+			foreach ($post_types as $post_type) {
+				add_meta_box('geolocation_sectionid', __( 'Geolocation', 'myplugin_textdomain' ), 'geolocation_inner_custom_box', $post_type, 'advanced' );
+			}
 		} 
 		else {
 			add_action('dbx_post_advanced', 'geolocation_old_custom_box' );
@@ -477,7 +485,7 @@ function display_location($content)  {
 		$address = reverse_geocode($latitude, $longitude);
 	
 	if((!empty($latitude)) && (!empty($longitude) && ($public == true) && ($on == true))) {
-		$html = '<a class="geolocation-link" href="#" id="geolocation'.$post->ID.'" name="'.$latitude.','.$longitude.'" onclick="return false;">Posted from '.esc_html($address).'.</a>';
+		$html = '<a class="geolocation-link" href="#" id="geolocation'.$post->ID.'" name="'.$latitude.','.$longitude.'" onclick="return false;">'.esc_html(get_option('geolocation_description_text')).' '.esc_html($address).'.</a>';
 		switch(esc_attr(get_option('geolocation_map_position')))
 		{
 			case 'before':
@@ -507,9 +515,12 @@ function reverse_geocode($latitude, $longitude) {
 	$url = "http://maps.google.com/maps/api/geocode/json?latlng=".$latitude.",".$longitude."&sensor=false";
 	$result = wp_remote_get($url);
 	$json = json_decode($result['body']);
-	foreach ($json->results as $result)
-	{
+	foreach ($json->results as $result) {
 		foreach($result->address_components as $addressPart) {
+			if((in_array('street_number', $addressPart->types)) && (in_array('street_number', $addressPart->types)))
+	    		$street_address = $addressPart->long_name;
+			if((in_array('route', $addressPart->types)) && (in_array('route', $addressPart->types)))
+	    		$street_address = $street_address.' '.$addressPart->long_name;
 			if((in_array('locality', $addressPart->types)) && (in_array('political', $addressPart->types)))
 	    		$city = $addressPart->long_name;
 	    	else if((in_array('administrative_area_level_1', $addressPart->types)) && (in_array('political', $addressPart->types)))
@@ -527,6 +538,9 @@ function reverse_geocode($latitude, $longitude) {
 		$address = $state.', '.$country;
 	else if($country != '')
 		$address = $country;
+		
+	// Add street address
+	$address = $street_address.', '.$address;
 		
 	return $address;
 }
@@ -551,6 +565,7 @@ function register_settings() {
   register_setting( 'geolocation-settings-group', 'geolocation_map_height', 'intval' );
   register_setting( 'geolocation-settings-group', 'geolocation_default_zoom', 'intval' );
   register_setting( 'geolocation-settings-group', 'geolocation_map_position' );
+  register_setting( 'geolocation-settings-group', 'geolocation_description_text' );
   register_setting( 'geolocation-settings-group', 'geolocation_wp_pin');
 }
 
@@ -576,6 +591,9 @@ function default_settings() {
 		
 	if(get_option('geolocation_map_position') == '0')
 		update_option('geolocation_map_position', 'after');
+	
+	if(get_option('geolocation_description_text') == '')
+		update_option('geolocation_description_text', 'Posted from ');
 }
 
 function geolocation_settings_page() {
@@ -589,6 +607,8 @@ function geolocation_settings_page() {
 	<style type="text/css">
 		#zoom_level_sample { background: url('<?php echo esc_url(plugins_url('img/zoom/'.$zoomImage, __FILE__)); ?>'); width:390px; height:190px; border: solid 1px #999; }
 		#preload { display: none; }
+		#geolocation_description_text { width: 390px; }
+		#geolocation_description_label { font-style: italic; }
 		.dimensions strong { width: 50px; float: left; }
 		.dimensions input { width: 50px; margin-right: 5px; }
 		.zoom label { width: 50px; margin: 0 5px 0 2px; }
@@ -631,6 +651,14 @@ function geolocation_settings_page() {
 				
 				<input type="radio" id="geolocation_map_position_after" name="geolocation_map_position" value="after"<?php is_value('geolocation_map_position', 'after'); ?>><label for="geolocation_map_position_after">After the post.</label><br/>
 				<input type="radio" id="geolocation_map_position_shortcode" name="geolocation_map_position" value="shortcode"<?php is_value('geolocation_map_position', 'shortcode'); ?>><label for="geolocation_map_position_shortcode">Wherever I put the <strong>[geolocation]</strong> shortcode.</label>
+	        </td>
+        </tr>
+        <tr valign="top">
+	        <tr valign="top">
+	        <th scope="row">Description</th>
+	        <td class="description_text">
+	        	<input type="text" id="geolocation_description_text" name="geolocation_description_text" value="<?php echo esc_attr(get_option('geolocation_description_text')); ?>" onKeyUp="document.getElementById('geolocation_description_label').innerHTML = this.value + ' 132 Hawthorne St, San Francisco, CA 94103';" /><br/>
+	        	<label id="geolocation_description_label" for="geolocation_description_text"><?php echo esc_attr(get_option('geolocation_description_text')); ?> 132 Hawthorne St, San Francisco, CA 94103</label>
 	        </td>
         </tr>
         <tr valign="top">
@@ -677,6 +705,28 @@ function geolocation_settings_page() {
 		<img src="<?php echo esc_url(plugins_url('img/zoom/wp_18.png', __FILE__)); ?>"/>
 	</div>
 	<?php
+}
+
+// Add plugin action shortcuts
+add_filter('plugin_action_links', 'geolocation_plugin_action_links', 10, 2);
+function geolocation_plugin_action_links($links, $file) {
+    static $this_plugin;
+
+    if (!$this_plugin) {
+        $this_plugin = plugin_basename(__FILE__);
+    }
+
+    if ($file == $this_plugin) {
+    	// Settings
+        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/options-general.php?page=geolocation.php">Settings</a>';
+        
+    	// Edit
+        $edit_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/plugin-editor.php?file=geolocation/geolocation.php">Edit</a>';
+        
+        array_unshift($links, $settings_link, $edit_link);
+    }
+
+    return $links;
 }
 
 ?>
